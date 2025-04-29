@@ -3,19 +3,19 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# Load your trained model and scaler
+# Load model and scaler
 model = joblib.load('credit_score_model.pkl')
 scaler = joblib.load('scaler.pkl')
 
-# Streamlit app setup
+# Streamlit page config
 st.set_page_config(page_title="Credit Scoring App", layout="wide")
 st.sidebar.title("📄 Upload Your CSV")
 uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type=["csv"])
 
 st.title("📊 Credit Scoring Prediction App")
-st.write("Upload a dataset — missing features will be filled, categorical features will be encoded, and predictions will be made safely.")
+st.write("Upload a dataset — we'll clean the data, encode categories, and predict safely!")
 
-# List of features your model expects
+# Model features
 model_features = [
     'Age', 'Occupation', 'Annual_Income', 'Monthly_Inhand_Salary',
     'Num_Bank_Accounts', 'Num_Credit_Card', 'Interest_Rate', 'Num_of_Loan',
@@ -39,7 +39,7 @@ categorical_features = [
     'Payment_of_Min_Amount', 'Payment_Behaviour'
 ]
 
-# Categorical label encodings based on your training
+# Label encoder maps
 label_encoders = {
     'Payment_of_Min_Amount': {
         'No': 0, 'NM': 1, 'Yes': 2, 'Unknown': 1
@@ -68,7 +68,7 @@ label_encoders = {
     }
 }
 
-# Main app logic
+# App logic
 if uploaded_file is not None:
     try:
         with st.spinner("Processing your file..."):
@@ -79,36 +79,42 @@ if uploaded_file is not None:
             for feature in numeric_features:
                 if feature not in df.columns:
                     df[feature] = 0
+
+            # Safely convert numeric columns (fixes '28_', '40_' errors)
+            for feature in numeric_features:
+                df[feature] = pd.to_numeric(df[feature], errors='coerce')
+
+            # Fill any NaN after numeric cleaning
             df[numeric_features] = df[numeric_features].fillna(0)
 
-            # Fill missing and encode categorical features
+            # Encode categorical features
             for feature in categorical_features:
                 if feature not in df.columns:
                     df[feature] = 'Unknown'
                 df[feature] = df[feature].fillna('Unknown').map(label_encoders[feature])
                 df[feature] = df[feature].fillna(label_encoders[feature]['Unknown']).astype(int)
 
-            # Arrange columns in correct order
+            # Arrange columns
             input_df = df[model_features]
 
-            # ⚡ VERY IMPORTANT: Scale ALL features together
+            # Scale all features
             scaled_input = scaler.transform(input_df)
 
-            # Predict safely
+            # Predict
             preds = model.predict(scaled_input)
             probas = model.predict_proba(scaled_input)
 
-            # Attach predictions back to DataFrame
+            # Attach predictions
             df['Predicted_Class'] = preds
             df['Probability_Poor'] = probas[:, 0]
             df['Probability_Standard'] = probas[:, 1]
             df['Probability_Good'] = probas[:, 2]
 
-            # Show results
+            # Display
             st.subheader("🔍 Prediction Results")
             st.dataframe(df)
 
-            # Downloadable CSV
+            # Download results
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Download CSV with Predictions",
@@ -119,5 +125,6 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.error(f"⚠️ Error during prediction: {e}")
+
 else:
-    st.info("📌 Please upload a CSV file to begin.")
+    st.info("📌 Please upload a CSV file to start.")
