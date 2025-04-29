@@ -128,3 +128,49 @@ if uploaded_file is not None:
 
 else:
     st.info("📌 Please upload a CSV file to start.")
+
+import matplotlib.pyplot as plt
+
+# ===============================
+# 📊 Prediction Class Distribution Chart
+# ===============================
+st.subheader("📊 Credit Score Prediction Distribution")
+
+# Count the number of Poor / Standard / Good
+pred_counts = df['Predicted_Class'].value_counts().sort_index()
+
+# Map class numbers to readable names
+class_labels = {0: 'Poor', 1: 'Standard', 2: 'Good'}
+pred_counts.index = pred_counts.index.map(class_labels)
+
+# Bar Plot
+fig1, ax1 = plt.subplots()
+pred_counts.plot(kind='bar', ax=ax1)
+ax1.set_ylabel('Number of Customers')
+ax1.set_xlabel('Predicted Credit Score')
+ax1.set_title('Distribution of Credit Score Predictions')
+st.pyplot(fig1)
+
+# ===============================
+# 🥧 Pie Chart (optional, nice)
+# ===============================
+st.subheader("🥧 Credit Score Prediction Percentages")
+
+fig2, ax2 = plt.subplots()
+ax2.pie(pred_counts, labels=pred_counts.index, autopct='%1.1f%%', startangle=90, shadow=True)
+ax2.axis('equal')  # Equal aspect ratio ensures pie is circular.
+st.pyplot(fig2)
+
+# ===============================
+# 📈 Average Probabilities (optional)
+# ===============================
+st.subheader("📈 Average Prediction Probabilities")
+
+# Show mean probabilities across all records
+avg_probs = df[['Probability_Poor', 'Probability_Standard', 'Probability_Good']].mean()
+
+fig3, ax3 = plt.subplots()
+avg_probs.plot(kind='bar', ax=ax3)
+ax3.set_ylabel('Average Probability')
+ax3.set_title('Average Confidence per Credit Score Class')
+st.pyplot(fig3)
