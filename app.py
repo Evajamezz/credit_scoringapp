@@ -13,7 +13,7 @@ st.sidebar.title("📄 Upload Your CSV")
 uploaded_file = st.sidebar.file_uploader("Upload CSV file", type=["csv"])
 
 st.title("📊 Credit Scoring Batch Prediction")
-st.write("Upload **any dataset** — we’ll fill missing features, encode categories, and predict!")
+st.write("Upload **any dataset** — we’ll fill missing features, encode categories, and predict safely.")
 
 # === Final model features (from training)
 model_features = [
@@ -91,9 +91,9 @@ if uploaded_file is not None:
                 input_df[categorical_features].reset_index(drop=True)
             ], axis=1)
 
-            # Predict
-            preds = model.predict(final_input)
-            probas = model.predict_proba(final_input)
+            # ✅ Predict using .values to skip feature name check
+            preds = model.predict(final_input.values)
+            probas = model.predict_proba(final_input.values)
 
             df['Predicted_Class'] = preds
             df['Probability_Poor'] = probas[:, 0]
