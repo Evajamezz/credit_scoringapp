@@ -8,8 +8,8 @@ import requests
 # ========================
 # CONFIG - Update this section!
 # ========================
-MODEL_URL = "https://huggingface.co/your-username/your-model-repo/resolve/main/credit_score_model.pkl"
-SCALER_URL = "https://huggingface.co/your-username/your-model-repo/resolve/main/scaler.pkl"
+MODEL_URL = "https://huggingface.co/EVAJAMEZZ/credit-score-model/resolve/main/credit_score_model.pkl"
+SCALER_URL = "https://huggingface.co/EVAJAMEZZ/credit-score-model/resolve/main/scaler.pkl"
 
 # ========================
 # Function to Download Model & Scaler
