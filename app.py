@@ -3,25 +3,19 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# ========================
-# Load Model and Scaler
-# ========================
+# Load model and scaler
 model = joblib.load('credit_score_model.pkl')
 scaler = joblib.load('scaler.pkl')
 
-# ========================
-# Streamlit App Setup
-# ========================
+# Page settings
 st.set_page_config(page_title="Credit Scoring App", layout="wide")
 st.sidebar.title("📄 Upload your CSV data")
 uploaded_file = st.sidebar.file_uploader("Choose a CSV file", type=["csv"])
 
 st.title("📊 Credit Scoring Batch Prediction App")
-st.write("Upload **any dataset**. We'll handle missing features and predict safely!")
+st.write("Upload **any dataset**. Missing features will be filled, and categorical features will be encoded safely.")
 
-# ========================
-# FULL List of Features Used During Training
-# ========================
+# ===== Training-time features =====
 numeric_features = [
     'Age', 'Annual_Income', 'Changed_Credit_Limit', 'Credit_Utilization_Ratio',
     'Delay_from_due_date', 'Outstanding_Debt', 'Monthly_Inhand_Salary',
@@ -35,65 +29,71 @@ categorical_features = [
     'Occupation', 'Type_of_Loan'
 ]
 
-# Combine all expected features
 model_features = numeric_features + categorical_features
 
-# ========================
-# Main App Logic
-# ========================
+# ===== LabelEncoder mappings used during training =====
+label_encoders = {
+    'Payment_of_Min_Amount': {
+        'No': 0, 'NM': 1, 'Yes': 2, 'Unknown': 1
+    },
+    'Payment_Behaviour': {
+        'Low_spent_Small_value_payments': 0,
+        'Low_spent_Medium_value_payments': 1,
+        'High_spent_Small_value_payments': 2,
+        'High_spent_Large_value_payments': 3,
+        'Unknown': 1
+    },
+    'Credit_Mix': {
+        'Bad': 0, 'Good': 1, 'Standard': 2, 'Unknown': 1
+    },
+    'Occupation': {
+        'Teacher': 0, 'Lawyer': 1, 'Engineer': 2, 'Doctor': 3,
+        'Entrepreneur': 4, 'Unknown': 2
+    },
+    'Type_of_Loan': {
+        'Auto Loan': 0, 'Personal Loan': 1, 'Home Loan': 2,
+        'Credit-Builder Loan': 3, 'Unknown': 1
+    }
+}
+
+# ===== Main App Logic =====
 if uploaded_file is not None:
     try:
-        with st.spinner('🔄 Processing uploaded file...'):
+        with st.spinner('🔄 Processing your file...'):
             df = pd.read_csv(uploaded_file)
             st.success("✅ File uploaded successfully!")
 
-            # Step 1: Auto-fill Missing Columns
+            # Fill missing numeric features with 0
             for feature in numeric_features:
                 if feature not in df.columns:
-                    df[feature] = 0  # Fill missing numeric with 0
+                    df[feature] = 0
+            df[numeric_features] = df[numeric_features].fillna(0)
 
-            for feature in categorical_features:
-                if feature not in df.columns:
-                    df[feature] = 'Unknown'  # Fill missing categorical with 'Unknown'
+            # Fill and encode categorical features
+            for col in categorical_features:
+                if col not in df.columns:
+                    df[col] = 'Unknown'
+                df[col] = df[col].fillna('Unknown').map(label_encoders[col])
+                df[col] = df[col].fillna(label_encoders[col]['Unknown'])
 
-            # Step 2: Ensure Correct Column Order
+            # Arrange columns in exact order
             input_df = df[model_features]
 
-            # Step 3: Encoding (if necessary)
-            # Assuming model is already trained to handle raw categorical text
-            # (if LabelEncoder used, you need to encode here)
+            # Scale only numeric columns
+            scaled_numeric = scaler.transform(input_df[numeric_features])
+            scaled_numeric_df = pd.DataFrame(scaled_numeric, columns=numeric_features)
 
-            # Step 4: Scale Numeric Features Only
-            numeric_df = input_df[numeric_features]
-            scaled_numeric = scaler.transform(numeric_df)
+            # Combine numeric + encoded categorical
+            final_input = pd.concat(
+                [scaled_numeric_df.reset_index(drop=True), input_df[categorical_features].reset_index(drop=True)],
+                axis=1
+            )
 
-            # Combine scaled numeric + categorical (unchanged)
-            final_input = pd.DataFrame(scaled_numeric, columns=numeric_features)
-            final_input = pd.concat([final_input, input_df[categorical_features].reset_index(drop=True)], axis=1)
-
-            # Step 5: Predict
+            # Predict
             preds = model.predict(final_input)
             probas = model.predict_proba(final_input)
 
             df['Predicted_Class'] = preds
             df['Probability_Poor'] = probas[:, 0]
             df['Probability_Standard'] = probas[:, 1]
-            df['Probability_Good'] = probas[:, 2]
-
-            st.subheader("🔍 Prediction Results")
-            st.dataframe(df)
-
-            # Allow CSV Download
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📥 Download Predictions as CSV",
-                data=csv,
-                file_name='predictions_with_results.csv',
-                mime='text/csv',
-            )
-
-    except Exception as e:
-        st.error(f"⚠️ Error processing file: {e}")
-
-else:
-    st.info("📌 Please upload a CSV file to start.")
+            df['Probability_Good'] = probas[:,_
