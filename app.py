@@ -96,4 +96,23 @@ if uploaded_file is not None:
             df['Predicted_Class'] = preds
             df['Probability_Poor'] = probas[:, 0]
             df['Probability_Standard'] = probas[:, 1]
-            df['Probability_Good'] = probas[:,_
+            df['Probability_Good'] = probas[:, 2]
+
+            # Results
+            st.subheader("🔍 Prediction Results")
+            st.dataframe(df)
+
+            # Downloadable CSV
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Predictions as CSV",
+                data=csv,
+                file_name='predictions_with_results.csv',
+                mime='text/csv',
+            )
+
+    except Exception as e:
+        st.error(f"⚠️ Error processing file: {e}")
+
+else:
+    st.info("📌 Please upload a CSV file to start.")
