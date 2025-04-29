@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import matplotlib.pyplot as plt
 
 # Load model and scaler
 model = joblib.load('credit_score_model.pkl')
@@ -13,9 +14,9 @@ st.sidebar.title("📄 Upload Your CSV")
 uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type=["csv"])
 
 st.title("📊 Credit Scoring Prediction App")
-st.write("Upload a dataset — we'll clean the data, encode categories, and predict safely!")
+st.write("Upload your dataset — we'll clean the data, predict Credit Scores, and visualize the results!")
 
-# Model features
+# Define model features
 model_features = [
     'Age', 'Occupation', 'Annual_Income', 'Monthly_Inhand_Salary',
     'Num_Bank_Accounts', 'Num_Credit_Card', 'Interest_Rate', 'Num_of_Loan',
@@ -39,21 +40,15 @@ categorical_features = [
     'Payment_of_Min_Amount', 'Payment_Behaviour'
 ]
 
-# Label encoder maps
+# Categorical encoders
 label_encoders = {
-    'Payment_of_Min_Amount': {
-        'No': 0, 'NM': 1, 'Yes': 2, 'Unknown': 1
-    },
+    'Payment_of_Min_Amount': {'No': 0, 'NM': 1, 'Yes': 2, 'Unknown': 1},
     'Payment_Behaviour': {
-        'Low_spent_Small_value_payments': 0,
-        'Low_spent_Medium_value_payments': 1,
-        'High_spent_Small_value_payments': 2,
-        'High_spent_Large_value_payments': 3,
+        'Low_spent_Small_value_payments': 0, 'Low_spent_Medium_value_payments': 1,
+        'High_spent_Small_value_payments': 2, 'High_spent_Large_value_payments': 3,
         'Unknown': 1
     },
-    'Credit_Mix': {
-        'Bad': 0, 'Good': 1, 'Standard': 2, 'Unknown': 1
-    },
+    'Credit_Mix': {'Bad': 0, 'Good': 1, 'Standard': 2, 'Unknown': 1},
     'Occupation': {
         'Teacher': 0, 'Lawyer': 1, 'Engineer': 2, 'Doctor': 3,
         'Entrepreneur': 4, 'Scientist': 5, 'Developer': 6,
@@ -68,23 +63,19 @@ label_encoders = {
     }
 }
 
-# App logic
+# Main app
 if uploaded_file is not None:
     try:
         with st.spinner("Processing your file..."):
             df = pd.read_csv(uploaded_file)
             st.success("✅ File uploaded successfully!")
 
-            # Fill missing numeric features
+            # Clean numeric features
             for feature in numeric_features:
                 if feature not in df.columns:
                     df[feature] = 0
-
-            # Safely convert numeric columns (fixes '28_', '40_' errors)
             for feature in numeric_features:
                 df[feature] = pd.to_numeric(df[feature], errors='coerce')
-
-            # Fill any NaN after numeric cleaning
             df[numeric_features] = df[numeric_features].fillna(0)
 
             # Encode categorical features
@@ -97,7 +88,7 @@ if uploaded_file is not None:
             # Arrange columns
             input_df = df[model_features]
 
-            # Scale all features
+            # Scale
             scaled_input = scaler.transform(input_df)
 
             # Predict
@@ -110,11 +101,11 @@ if uploaded_file is not None:
             df['Probability_Standard'] = probas[:, 1]
             df['Probability_Good'] = probas[:, 2]
 
-            # Display
+            # Show results
             st.subheader("🔍 Prediction Results")
             st.dataframe(df)
 
-            # Download results
+            # Download button
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Download CSV with Predictions",
@@ -123,54 +114,37 @@ if uploaded_file is not None:
                 mime="text/csv"
             )
 
+            # ✅ Show Visualizations if Predictions are ready
+            if 'Predicted_Class' in df.columns:
+                st.subheader("📊 Credit Score Prediction Distribution")
+
+                pred_counts = df['Predicted_Class'].value_counts().sort_index()
+                class_labels = {0: 'Poor', 1: 'Standard', 2: 'Good'}
+                pred_counts.index = pred_counts.index.map(class_labels)
+
+                fig1, ax1 = plt.subplots()
+                pred_counts.plot(kind='bar', ax=ax1)
+                ax1.set_ylabel('Number of Predictions')
+                ax1.set_xlabel('Credit Score Category')
+                ax1.set_title('Distribution of Predicted Credit Scores')
+                st.pyplot(fig1)
+
+                st.subheader("🥧 Prediction Percentages")
+                fig2, ax2 = plt.subplots()
+                ax2.pie(pred_counts, labels=pred_counts.index, autopct='%1.1f%%', startangle=90, shadow=True)
+                ax2.axis('equal')
+                st.pyplot(fig2)
+
+                st.subheader("📈 Average Confidence per Class")
+                avg_probs = df[['Probability_Poor', 'Probability_Standard', 'Probability_Good']].mean()
+                fig3, ax3 = plt.subplots()
+                avg_probs.plot(kind='bar', ax=ax3)
+                ax3.set_ylabel('Average Probability')
+                ax3.set_title('Model Confidence by Class')
+                st.pyplot(fig3)
+
     except Exception as e:
-        st.error(f"⚠️ Error during prediction: {e}")
+        st.error(f"⚠️ Error during processing: {e}")
 
 else:
-    st.info("📌 Please upload a CSV file to start.")
-
-import matplotlib.pyplot as plt
-
-# ===============================
-# 📊 Prediction Class Distribution Chart
-# ===============================
-st.subheader("📊 Credit Score Prediction Distribution")
-
-# Count the number of Poor / Standard / Good
-pred_counts = df['Predicted_Class'].value_counts().sort_index()
-
-# Map class numbers to readable names
-class_labels = {0: 'Poor', 1: 'Standard', 2: 'Good'}
-pred_counts.index = pred_counts.index.map(class_labels)
-
-# Bar Plot
-fig1, ax1 = plt.subplots()
-pred_counts.plot(kind='bar', ax=ax1)
-ax1.set_ylabel('Number of Customers')
-ax1.set_xlabel('Predicted Credit Score')
-ax1.set_title('Distribution of Credit Score Predictions')
-st.pyplot(fig1)
-
-# ===============================
-# 🥧 Pie Chart (optional, nice)
-# ===============================
-st.subheader("🥧 Credit Score Prediction Percentages")
-
-fig2, ax2 = plt.subplots()
-ax2.pie(pred_counts, labels=pred_counts.index, autopct='%1.1f%%', startangle=90, shadow=True)
-ax2.axis('equal')  # Equal aspect ratio ensures pie is circular.
-st.pyplot(fig2)
-
-# ===============================
-# 📈 Average Probabilities (optional)
-# ===============================
-st.subheader("📈 Average Prediction Probabilities")
-
-# Show mean probabilities across all records
-avg_probs = df[['Probability_Poor', 'Probability_Standard', 'Probability_Good']].mean()
-
-fig3, ax3 = plt.subplots()
-avg_probs.plot(kind='bar', ax=ax3)
-ax3.set_ylabel('Average Probability')
-ax3.set_title('Average Confidence per Credit Score Class')
-st.pyplot(fig3)
+    st.info("📌 Please upload a CSV file to get started.")
