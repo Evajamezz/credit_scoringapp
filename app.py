@@ -13,21 +13,21 @@ scaler = joblib.load('scaler.pkl')
 # Streamlit App Setup
 # ========================
 st.set_page_config(page_title="Credit Scoring App", layout="wide")
-st.sidebar.title("📄 Upload your CSV file")
+st.sidebar.title("📄 Upload your CSV data")
 uploaded_file = st.sidebar.file_uploader("Choose a CSV file", type=["csv"])
 
 st.title("📊 Credit Scoring Batch Prediction App")
-st.write("Upload **any dataset**. We'll automatically handle missing features, including categorical and numeric!")
+st.write("Upload **any dataset**. We'll handle missing features and predict safely!")
 
 # ========================
-# FULL Feature List (Used in Model Training)
+# FULL List of Features Used During Training
 # ========================
 numeric_features = [
     'Age', 'Annual_Income', 'Changed_Credit_Limit', 'Credit_Utilization_Ratio',
     'Delay_from_due_date', 'Outstanding_Debt', 'Monthly_Inhand_Salary',
     'Monthly_Balance', 'Num_Bank_Accounts', 'Num_Credit_Card', 
     'Num_Credit_Inquiries', 'Num_of_Loan', 'Num_of_Delayed_Payment', 
-    'Interest_Rate', 'Credit_History_Age_Months'
+    'Interest_Rate', 'Credit_History_Age_Months', 'Total_EMI_per_month'
 ]
 
 categorical_features = [
@@ -35,7 +35,7 @@ categorical_features = [
     'Occupation', 'Type_of_Loan'
 ]
 
-# Combine total list
+# Combine all expected features
 model_features = numeric_features + categorical_features
 
 # ========================
@@ -43,13 +43,11 @@ model_features = numeric_features + categorical_features
 # ========================
 if uploaded_file is not None:
     try:
-        with st.spinner('Reading file and preparing for prediction... ⏳'):
+        with st.spinner('🔄 Processing uploaded file...'):
             df = pd.read_csv(uploaded_file)
             st.success("✅ File uploaded successfully!")
 
-            # ========================
-            # Step 1: Fill Missing Columns
-            # ========================
+            # Step 1: Auto-fill Missing Columns
             for feature in numeric_features:
                 if feature not in df.columns:
                     df[feature] = 0  # Fill missing numeric with 0
@@ -58,26 +56,25 @@ if uploaded_file is not None:
                 if feature not in df.columns:
                     df[feature] = 'Unknown'  # Fill missing categorical with 'Unknown'
 
-            # ========================
             # Step 2: Ensure Correct Column Order
-            # ========================
             input_df = df[model_features]
 
-            # ========================
-            # Step 3: Encode Categorical Columns If Needed
-            # (Important: Must match whatever you did during model training!)
-            # ========================
-            # Example: If you used LabelEncoding or OneHotEncoding during training, apply it here again
-            # Here assuming model expects encoded values already (be careful!)
+            # Step 3: Encoding (if necessary)
+            # Assuming model is already trained to handle raw categorical text
+            # (if LabelEncoder used, you need to encode here)
 
-            # ========================
-            # Step 4: Scale and Predict
-            # ========================
-            input_scaled = scaler.transform(input_df)
-            preds = model.predict(input_scaled)
-            probas = model.predict_proba(input_scaled)
+            # Step 4: Scale Numeric Features Only
+            numeric_df = input_df[numeric_features]
+            scaled_numeric = scaler.transform(numeric_df)
 
-            # Attach results
+            # Combine scaled numeric + categorical (unchanged)
+            final_input = pd.DataFrame(scaled_numeric, columns=numeric_features)
+            final_input = pd.concat([final_input, input_df[categorical_features].reset_index(drop=True)], axis=1)
+
+            # Step 5: Predict
+            preds = model.predict(final_input)
+            probas = model.predict_proba(final_input)
+
             df['Predicted_Class'] = preds
             df['Probability_Poor'] = probas[:, 0]
             df['Probability_Standard'] = probas[:, 1]
@@ -86,9 +83,7 @@ if uploaded_file is not None:
             st.subheader("🔍 Prediction Results")
             st.dataframe(df)
 
-            # ========================
-            # Step 5: Allow CSV Download
-            # ========================
+            # Allow CSV Download
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Download Predictions as CSV",
