@@ -6,8 +6,8 @@ import os
 import requests
 
 # --- CONFIG: URLs to download your model files ---
-MODEL_URL = "https://huggingface.co/your-username/your-model-repo/resolve/main/credit_score_model.pkl"
-SCALER_URL = "https://huggingface.co/your-username/your-model-repo/resolve/main/scaler.pkl"
+MODEL_URL = "https://huggingface.co/EVAJAMEZZ/your-model-repo/resolve/main/credit_score_model.pkl"
+SCALER_URL = "https://huggingface.co/EVAJAMEZZ/your-model-repo/resolve/main/scaler.pkl"
 
 # --- FUNCTION: Download if not present ---
 def download_file(url, filename):
